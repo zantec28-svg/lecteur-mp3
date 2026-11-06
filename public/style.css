@@ -65,9 +65,12 @@ main { display: flex; height: calc(100vh - 61px - var(--player-h)); }
 .volume { justify-self: end; display: flex; align-items: center; gap: 8px; }
 input[type=range] { accent-color: var(--accent); }
 
-.link { margin-left: auto; background: none; border: 1px solid var(--bg3); border-radius: 20px;
+.actions { margin-left: auto; display: flex; gap: 8px; }
+.link { background: none; border: 1px solid var(--bg3); border-radius: 20px;
   padding: 7px 14px; color: var(--fg); white-space: nowrap; }
 .link:hover { border-color: var(--accent); }
+.link.accent { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+.hidden { display: none !important; }
 
 .empty { color: var(--muted); grid-column: 1 / -1; text-align: center; margin-top: 60px; }
 
@@ -75,5 +78,9 @@ input[type=range] { accent-color: var(--accent); }
   .panel { position: fixed; inset: 0 0 var(--player-h) 0; width: auto; z-index: 10; }
   .player { grid-template-columns: 1fr auto; }
   .volume { display: none; }
+  .top { gap: 8px; padding: 12px; }
+  .top h1 { display: none; }
+  #search { min-width: 0; }
+  .link { padding: 6px 10px; font-size: 13px; }
   .seek { display: none; }
 }

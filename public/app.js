@@ -162,13 +162,13 @@ const collator = new Intl.Collator('fr', { numeric: true, sensitivity: 'base' })
 const ext = (n) => n.split('.').pop().toLowerCase();
 let coverUrls = [];
 
-function albumsFromFiles(files) {
+function albumsFromFiles(items) {
   coverUrls.forEach(URL.revokeObjectURL);
   coverUrls = [];
   // chemin : DossierChoisi/Album/…/fichier.mp3 → 1 sous-dossier = 1 album
   const byAlbum = new Map();
-  for (const f of files) {
-    const parts = f.webkitRelativePath.split('/');
+  for (const { rel, f } of items) {
+    const parts = rel.split('/');
     if (parts.length < 3 || parts.some((p) => p.startsWith('.'))) continue;
     if (!byAlbum.has(parts[1])) byAlbum.set(parts[1], []);
     byAlbum.get(parts[1]).push({ path: parts.slice(2).join('/'), f });
@@ -195,18 +195,111 @@ function albumsFromFiles(files) {
   return list.sort((a, b) => collator.compare(a.name, b.name));
 }
 
-$('pick').onclick = () => $('dir-input').click();
-$('dir-input').onchange = (e) => {
-  if (!e.target.files.length) return;
-  albums = albumsFromFiles(e.target.files);
+function showLibrary(list) {
+  albums = list;
   $('panel').classList.add('hidden');
   $('search').value = '';
   renderGrid();
+}
+
+$('dir-input').onchange = (e) => {
+  if (!e.target.files.length) return;
+  showLibrary(albumsFromFiles([...e.target.files].map((f) => ({ rel: f.webkitRelativePath, f }))));
   e.target.value = '';
 };
+
+// ---------- Version installée (Chromebook) : dossier mémorisé ----------
+// Uniquement quand le lecteur est lancé comme application installée.
+const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const canRemember = installed && 'showDirectoryPicker' in window && 'indexedDB' in window;
+
+function idb(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('lecteur-mp3', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const tx = req.result.transaction('kv', mode);
+      const r = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => resolve(r.result);
+      tx.onerror = () => reject(tx.error);
+    };
+  });
+}
+const saveFolder = (h) => idb('readwrite', (s) => s.put(h, 'dossier')).catch(() => {});
+const loadFolder = () => idb('readonly', (s) => s.get('dossier')).catch(() => null);
+
+async function loadFromHandle(root) {
+  $('grid').innerHTML = '<p class="empty">Lecture du dossier…</p>';
+  const items = [];
+  async function walk(dir, rel) {
+    for await (const h of dir.values()) {
+      if (h.name.startsWith('.')) continue;
+      const path = `${rel}/${h.name}`;
+      if (h.kind === 'directory') await walk(h, path);
+      else items.push({ rel: path, f: await h.getFile() });
+    }
+  }
+  try {
+    await walk(root, root.name);
+    showLibrary(albumsFromFiles(items));
+  } catch {
+    $('grid').innerHTML = '<p class="empty">Impossible de lire ce dossier.</p>';
+  }
+}
+
+function offerResume(handle) {
+  const btn = $('resume');
+  btn.textContent = `▶ Reprendre « ${handle.name} »`;
+  btn.classList.remove('hidden');
+  $('grid').innerHTML = `<p class="empty">Clique sur « ▶ Reprendre » pour retrouver ta musique.</p>`;
+  btn.onclick = async () => {
+    // Chrome redemande l'autorisation de lecture à chaque lancement : un clic suffit
+    if ((await handle.requestPermission({ mode: 'read' })) !== 'granted') return;
+    btn.classList.add('hidden');
+    loadFromHandle(handle);
+  };
+}
+
+$('pick').onclick = async () => {
+  if (!canRemember) return $('dir-input').click();
+  let handle;
+  try { handle = await showDirectoryPicker({ id: 'musique', mode: 'read' }); } catch { return; }
+  await saveFolder(handle);
+  $('resume').classList.add('hidden');
+  loadFromHandle(handle);
+};
+
+async function restoreFolder() {
+  if (!canRemember) return false;
+  const handle = await loadFolder();
+  if (!handle) return false;
+  if ((await handle.queryPermission({ mode: 'read' })) === 'granted') loadFromHandle(handle);
+  else offerResume(handle);
+  return true;
+}
+
+// ---------- Bouton « Installer » (Chrome, Edge, Chromebook) ----------
+let installPrompt = null;
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installPrompt = e;
+  $('install').classList.remove('hidden');
+});
+$('install').onclick = async () => {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  $('install').classList.add('hidden');
+};
+addEventListener('appinstalled', () => $('install').classList.add('hidden'));
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 
 // ---------- Bibliothèque fournie par le serveur (node server.js) ----------
 fetch('/api/albums')
   .then((r) => r.json())
   .then((data) => { albums = data; renderGrid(); })
-  .catch(() => { renderGrid(); });
+  .catch(async () => { if (!(await restoreFolder())) renderGrid(); });
