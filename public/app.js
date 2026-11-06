@@ -208,10 +208,9 @@ $('dir-input').onchange = (e) => {
   e.target.value = '';
 };
 
-// ---------- Version installée (Chromebook) : dossier mémorisé ----------
-// Uniquement quand le lecteur est lancé comme application installée.
-const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-const canRemember = installed && 'showDirectoryPicker' in window && 'indexedDB' in window;
+// ---------- Dossier mémorisé (Chrome, Edge, Chromebook) ----------
+// Les autres navigateurs gardent le choix classique, sans mémorisation.
+const canRemember = 'showDirectoryPicker' in window && 'indexedDB' in window;
 
 function idb(mode, fn) {
   return new Promise((resolve, reject) => {
@@ -255,7 +254,13 @@ function offerResume(handle) {
   $('grid').innerHTML = `<p class="empty">Clique sur « ▶ Reprendre » pour retrouver ta musique.</p>`;
   btn.onclick = async () => {
     // Chrome redemande l'autorisation de lecture à chaque lancement : un clic suffit
-    if ((await handle.requestPermission({ mode: 'read' })) !== 'granted') return;
+    let perm = 'denied';
+    try { perm = await handle.requestPermission({ mode: 'read' }); } catch {}
+    if (perm !== 'granted') {
+      // dossier déplacé ou supprimé : on en choisit un autre
+      if (perm !== 'prompt') btn.classList.add('hidden');
+      return;
+    }
     btn.classList.add('hidden');
     loadFromHandle(handle);
   };
@@ -274,7 +279,10 @@ async function restoreFolder() {
   if (!canRemember) return false;
   const handle = await loadFolder();
   if (!handle) return false;
-  if ((await handle.queryPermission({ mode: 'read' })) === 'granted') loadFromHandle(handle);
+  // Si tu as choisi « Autoriser à chaque visite », le dossier se recharge tout seul
+  let perm = 'prompt';
+  try { perm = await handle.queryPermission({ mode: 'read' }); } catch {}
+  if (perm === 'granted') loadFromHandle(handle);
   else offerResume(handle);
   return true;
 }
@@ -299,7 +307,14 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 }
 
 // ---------- Bibliothèque fournie par le serveur (node server.js) ----------
-fetch('/api/albums')
-  .then((r) => r.json())
-  .then((data) => { albums = data; renderGrid(); })
-  .catch(async () => { if (!(await restoreFolder())) renderGrid(); });
+async function init() {
+  // 1) Lancé avec node server.js : la bibliothèque vient du serveur
+  try {
+    const r = await fetch('/api/albums');
+    const data = r.ok ? await r.json() : null;
+    if (Array.isArray(data) && data.length) { albums = data; return renderGrid(); }
+  } catch {}
+  // 2) Sinon : dossier mémorisé, ou invitation à en choisir un
+  if (!(await restoreFolder())) renderGrid();
+}
+init();
