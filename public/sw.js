@@ -1,6 +1,6 @@
 // Service worker : permet l'installation et le lancement hors connexion.
 // Réseau d'abord (pour toujours avoir la dernière version), cache en secours.
-const CACHE = 'lecteur-mp3-v2';
+const CACHE = 'lecteur-mp3-v3';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {

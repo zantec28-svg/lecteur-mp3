@@ -40,9 +40,12 @@ Sur la version en ligne (https://lecteur.pauwels.ovh), un bouton **⬇ Installer
 dans Chrome et Edge. Un clic, et le lecteur devient une application : icône dans le lanceur du Chromebook,
 fenêtre à part. Le bouton n'apparaît pas si l'application est déjà installée ou si le navigateur ne le permet pas.
 
-Dans la version installée, **le dossier choisi est mémorisé** : aux lancements suivants, un clic sur
-**▶ Reprendre** suffit (Chrome redemande simplement l'autorisation de lecture). Dans le navigateur
-classique, rien ne change : le dossier se choisit à chaque fois.
+## Dossier mémorisé (Chrome, Edge, Chromebook)
+
+Le dossier choisi est **mémorisé**. Au lancement suivant, un bouton **▶ Reprendre** apparaît ;
+Chrome demande alors l'autorisation de lire le dossier. Choisir **« Autoriser à chaque visite »**
+rend la chose définitive : le dossier se recharge tout seul à chaque ouverture, sans aucun clic.
+Dans les autres navigateurs (Firefox, Safari), le dossier se choisit à chaque fois.
 
 ## Organisation attendue
 
