@@ -4,13 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ma Musique</title>
+  <meta name="theme-color" content="#121212">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="top">
     <h1>Ma Musique</h1>
     <input id="search" type="search" placeholder="Rechercher un album…" autocomplete="off">
+    <div class="actions">
+    <button id="resume" class="link accent hidden" title="Recharger le dossier mémorisé"></button>
     <button id="pick" class="link" title="Choisir le dossier qui contient tes albums">📁 Choisir un dossier</button>
+    <button id="install" class="link accent hidden" title="Installer le lecteur comme une application">⬇ Installer</button>
+    </div>
     <input id="dir-input" type="file" webkitdirectory multiple hidden>
   </header>
 

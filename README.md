@@ -34,6 +34,16 @@ Le navigateur lit les fichiers sur ton appareil : rien n'est envoyé sur interne
 Chrome affiche un message du type « Importer N fichiers sur ce site ? » : c'est le message standard
 de Chrome pour le choix d'un dossier, les fichiers ne quittent pas ton ordinateur.
 
+## Installer comme application (Chromebook, Chrome, Edge)
+
+Sur la version en ligne (https://lecteur.pauwels.ovh), un bouton **⬇ Installer** apparaît en haut à droite
+dans Chrome et Edge. Un clic, et le lecteur devient une application : icône dans le lanceur du Chromebook,
+fenêtre à part. Le bouton n'apparaît pas si l'application est déjà installée ou si le navigateur ne le permet pas.
+
+Dans la version installée, **le dossier choisi est mémorisé** : aux lancements suivants, un clic sur
+**▶ Reprendre** suffit (Chrome redemande simplement l'autorisation de lecture). Dans le navigateur
+classique, rien ne change : le dossier se choisit à chaque fois.
+
 ## Organisation attendue
 
 ```
