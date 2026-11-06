@@ -4,30 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ma Musique</title>
-  <meta name="theme-color" content="#121212">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="top">
     <h1>Ma Musique</h1>
     <input id="search" type="search" placeholder="Rechercher un album…" autocomplete="off">
-    <button id="change-folder" class="link hidden" title="Choisir un autre dossier de musique">📁 <span>Changer de dossier</span></button>
+    <button id="pick" class="link" title="Choisir le dossier qui contient tes albums">📁 Choisir un dossier</button>
+    <input id="dir-input" type="file" webkitdirectory multiple hidden>
   </header>
 
   <main>
-    <section id="welcome" class="welcome hidden">
-      <img src="icon.svg" width="96" height="96" alt="">
-      <h2>Bienvenue !</h2>
-      <p>Choisis le dossier qui contient ta musique.<br>Chaque sous-dossier sera un album.</p>
-      <button id="resume" class="btn hidden"></button>
-      <button id="pick" class="btn">📁 Choisir mon dossier de musique</button>
-      <p class="note">Tes fichiers restent sur ton appareil : rien n'est envoyé sur internet.</p>
-      <input id="dir-input" type="file" webkitdirectory multiple hidden>
-    </section>
-    <p id="loading" class="loading hidden">Lecture de la bibliothèque…</p>
     <section id="grid" class="grid"></section>
 
     <aside id="panel" class="panel hidden">

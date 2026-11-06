@@ -34,7 +34,7 @@ function renderGrid() {
   grid.innerHTML = '';
   const list = albums.filter((a) => a.name.toLowerCase().includes(q));
   if (!list.length) {
-    grid.innerHTML = `<p class="empty">${albums.length ? 'Aucun album trouvé.' : 'Aucun album dans ce dossier.'}</p>`;
+    grid.innerHTML = `<p class="empty">${albums.length ? 'Aucun album trouvé.' : 'Aucun album pour le moment : clique sur « 📁 Choisir un dossier ».'}</p>`;
     return;
   }
   for (const a of list) {
@@ -81,25 +81,17 @@ function highlight() {
 }
 
 // ---------- Lecture ----------
-let currentBlobUrl = null;
-let playToken = 0;
-async function trackUrl(t) {
-  if (t.url) return t.url;               // mode serveur local
-  const file = await t.getFile();        // mode dossier choisi dans le navigateur
-  if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
-  currentBlobUrl = URL.createObjectURL(file);
-  return currentBlobUrl;
-}
-
-async function playAlbum(a, i) {
+let blobUrl = null;
+function playAlbum(a, i) {
   queue = a;
   index = i;
   const t = a.tracks[i];
-  const token = ++playToken;
-  let src;
-  try { src = await trackUrl(t); } catch { return alert(`Impossible de lire « ${t.title} ».`); }
-  if (token !== playToken) return;       // un autre titre a été demandé entre-temps
-  audio.src = src;
+  // Fichier choisi via le bouton : lu directement depuis l'appareil
+  if (t.blob) {
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = URL.createObjectURL(t.blob);
+  }
+  audio.src = t.blob ? blobUrl : t.url;
   audio.play().catch(() => {});
   $('now-title').textContent = t.title;
   $('now-album').textContent = a.name;
@@ -162,177 +154,59 @@ if ('mediaSession' in navigator) {
   navigator.mediaSession.setActionHandler('previoustrack', prev);
 }
 
-// ======================================================================
-// Bibliothèque
-//  - mode serveur : `node server.js "C:\Musique"` fournit /api/albums
-//  - mode navigateur (Vercel, Chromebook…) : on choisit le dossier, le
-//    navigateur lit les fichiers sur l'appareil, rien n'est envoyé.
-// ======================================================================
+// ---------- Choix du dossier via le bouton ----------
+// Le dossier choisi est lu par le navigateur : rien n'est envoyé sur internet.
 const AUDIO_EXT = ['mp3', 'm4a', 'flac', 'ogg', 'wav', 'aac', 'opus'];
 const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
 const collator = new Intl.Collator('fr', { numeric: true, sensitivity: 'base' });
 const ext = (n) => n.split('.').pop().toLowerCase();
-const prettyTitle = (n) =>
-  n.replace(/\.[^.]+$/, '').replace(/^\s*\d{1,3}\s*[-._)\s]\s*/, '').trim() || n;
 let coverUrls = [];
 
-function setLibrary(list) {
-  albums = list;
-  $('loading').classList.add('hidden');
-  $('welcome').classList.add('hidden');
-  $('grid').classList.remove('hidden');
-  renderGrid();
-}
-
-// entries : [{ album, path, name, getFile }] → liste d'albums
-async function buildAlbums(entries) {
+function albumsFromFiles(files) {
   coverUrls.forEach(URL.revokeObjectURL);
   coverUrls = [];
+  // chemin : DossierChoisi/Album/…/fichier.mp3 → 1 sous-dossier = 1 album
   const byAlbum = new Map();
-  for (const e of entries) {
-    if (!byAlbum.has(e.album)) byAlbum.set(e.album, []);
-    byAlbum.get(e.album).push(e);
+  for (const f of files) {
+    const parts = f.webkitRelativePath.split('/');
+    if (parts.length < 3 || parts.some((p) => p.startsWith('.'))) continue;
+    if (!byAlbum.has(parts[1])) byAlbum.set(parts[1], []);
+    byAlbum.get(parts[1]).push({ path: parts.slice(2).join('/'), f });
   }
   const list = [];
-  for (const [name, files] of byAlbum) {
-    files.sort((a, b) => collator.compare(a.path, b.path));
-    const tracks = files.filter((f) => AUDIO_EXT.includes(ext(f.name)));
+  for (const [name, items] of byAlbum) {
+    items.sort((a, b) => collator.compare(a.path, b.path));
+    const tracks = items.filter((i) => AUDIO_EXT.includes(ext(i.f.name)));
     if (!tracks.length) continue;
-    const images = files.filter((f) => IMAGE_EXT.includes(ext(f.name)));
-    const base = (f) => f.name.replace(/\.[^.]+$/, '').toLowerCase();
-    const img = ['cover', 'folder', 'front', 'album'].map((p) => images.find((f) => base(f) === p)).find(Boolean) || images[0];
+    const images = items.filter((i) => IMAGE_EXT.includes(ext(i.f.name)));
+    const base = (i) => i.f.name.replace(/\.[^.]+$/, '').toLowerCase();
+    const img = ['cover', 'folder', 'front', 'album'].map((p) => images.find((i) => base(i) === p)).find(Boolean) || images[0];
     let cover = null;
-    if (img) {
-      try { cover = URL.createObjectURL(await img.getFile()); coverUrls.push(cover); } catch {}
-    }
+    if (img) { cover = URL.createObjectURL(img.f); coverUrls.push(cover); }
     list.push({
       name, cover,
-      tracks: tracks.map((f) => ({ title: prettyTitle(f.name), file: f.path, getFile: f.getFile })),
+      tracks: tracks.map((i) => ({
+        title: i.f.name.replace(/\.[^.]+$/, '').replace(/^\s*\d{1,3}\s*[-._)\s]\s*/, '').trim() || i.f.name,
+        file: i.path,
+        blob: i.f,
+      })),
     });
   }
   return list.sort((a, b) => collator.compare(a.name, b.name));
 }
 
-// Parcours d'un dossier choisi avec showDirectoryPicker (Chrome, Edge, ChromeOS)
-async function scanHandle(root) {
-  const entries = [];
-  async function walk(dir, album, rel) {
-    for await (const h of dir.values()) {
-      if (h.name.startsWith('.')) continue;
-      const path = rel ? `${rel}/${h.name}` : h.name;
-      if (h.kind === 'directory') await walk(h, album, path);
-      else if (album) entries.push({ album, path, name: h.name, getFile: () => h.getFile() });
-    }
-  }
-  for await (const h of root.values()) {
-    if (h.kind === 'directory' && !h.name.startsWith('.')) await walk(h, h.name, '');
-  }
-  return buildAlbums(entries);
-}
-
-// Parcours d'une sélection <input webkitdirectory> (tous navigateurs)
-function scanFileList(files) {
-  const entries = [];
-  for (const f of files) {
-    const parts = f.webkitRelativePath.split('/'); // Racine/Album/…/fichier
-    if (parts.length < 3 || parts.some((p) => p.startsWith('.'))) continue;
-    entries.push({ album: parts[1], path: parts.slice(2).join('/'), name: f.name, getFile: async () => f });
-  }
-  return buildAlbums(entries);
-}
-
-// Mémorisation du dossier choisi (IndexedDB) pour ne pas le redemander
-function idb(mode, fn) {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('lecteur-mp3', 1);
-    req.onupgradeneeded = () => req.result.createObjectStore('kv');
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => {
-      const tx = req.result.transaction('kv', mode);
-      const r = fn(tx.objectStore('kv'));
-      tx.oncomplete = () => resolve(r && r.result);
-      tx.onerror = () => reject(tx.error);
-    };
-  });
-}
-const saveHandle = (h) => idb('readwrite', (s) => s.put(h, 'dossier')).catch(() => {});
-const loadHandle = () => idb('readonly', (s) => s.get('dossier')).catch(() => null);
-
-async function openHandle(handle) {
-  $('welcome').classList.add('hidden');
-  $('loading').classList.remove('hidden');
-  try {
-    const list = await scanHandle(handle);
-    setLibrary(list);
-    $('change-folder').classList.remove('hidden');
-  } catch (e) {
-    $('loading').classList.add('hidden');
-    showWelcome();
-    alert('Impossible de lire ce dossier.');
-  }
-}
-
-async function pickFolder() {
-  if ('showDirectoryPicker' in window) {
-    let handle;
-    try { handle = await window.showDirectoryPicker({ id: 'musique', mode: 'read' }); }
-    catch { return; } // annulé
-    await saveHandle(handle);
-    openHandle(handle);
-  } else {
-    $('dir-input').click();
-  }
-}
-
-$('dir-input').onchange = async (e) => {
+$('pick').onclick = () => $('dir-input').click();
+$('dir-input').onchange = (e) => {
   if (!e.target.files.length) return;
-  $('welcome').classList.add('hidden');
-  $('loading').classList.remove('hidden');
-  setLibrary(await scanFileList(e.target.files));
-  $('change-folder').classList.remove('hidden');
+  albums = albumsFromFiles(e.target.files);
+  $('panel').classList.add('hidden');
+  $('search').value = '';
+  renderGrid();
+  e.target.value = '';
 };
 
-async function showWelcome() {
-  $('grid').classList.add('hidden');
-  $('welcome').classList.remove('hidden');
-  const handle = 'showDirectoryPicker' in window ? await loadHandle() : null;
-  const resume = $('resume');
-  if (handle) {
-    resume.textContent = `▶ Reprendre « ${handle.name} »`;
-    resume.classList.remove('hidden');
-    $('pick').textContent = '📁 Choisir un autre dossier';
-    resume.onclick = async () => {
-      // le navigateur redemande l'autorisation à chaque ouverture : un clic suffit
-      const ok = (await handle.queryPermission({ mode: 'read' })) === 'granted'
-        || (await handle.requestPermission({ mode: 'read' })) === 'granted';
-      if (ok) openHandle(handle);
-    };
-  } else {
-    resume.classList.add('hidden');
-    $('pick').textContent = '📁 Choisir mon dossier de musique';
-  }
-}
-
-$('pick').onclick = pickFolder;
-$('change-folder').onclick = () => { $('panel').classList.add('hidden'); showWelcome(); };
-
-async function init() {
-  // 1) Lancé avec node server.js : la bibliothèque vient du serveur
-  try {
-    const r = await fetch('/api/albums');
-    if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
-      const data = await r.json();
-      if (Array.isArray(data)) return setLibrary(data);
-    }
-  } catch {}
-  // 2) Sinon (Vercel, Chromebook…) : choix du dossier dans le navigateur
-  const handle = 'showDirectoryPicker' in window ? await loadHandle() : null;
-  if (handle && (await handle.queryPermission({ mode: 'read' })) === 'granted') return openHandle(handle);
-  showWelcome();
-}
-init();
-
-// Application installable (Chromebook, PC, Android)
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
+// ---------- Bibliothèque fournie par le serveur (node server.js) ----------
+fetch('/api/albums')
+  .then((r) => r.json())
+  .then((data) => { albums = data; renderGrid(); })
+  .catch(() => { renderGrid(); });
