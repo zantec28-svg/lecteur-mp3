@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ma Musique</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Ma Musique</h1>
+    <input id="search" type="search" placeholder="Rechercher un album…" autocomplete="off">
+  </header>
+
+  <main>
+    <section id="grid" class="grid"></section>
+
+    <aside id="panel" class="panel hidden">
+      <div class="panel-head">
+        <div id="panel-cover" class="cover"></div>
+        <div class="panel-info">
+          <h2 id="panel-title"></h2>
+          <p id="panel-count"></p>
+          <button id="panel-play" class="btn">▶ Lire l'album</button>
+        </div>
+        <button id="panel-close" class="icon" title="Fermer">✕</button>
+      </div>
+      <ol id="tracklist" class="tracklist"></ol>
+    </aside>
+  </main>
+
+  <footer class="player">
+    <div class="now">
+      <div id="now-cover" class="cover small"></div>
+      <div class="now-text">
+        <div id="now-title">Aucune lecture</div>
+        <div id="now-album"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="buttons">
+        <button id="prev" class="icon" title="Précédent">⏮</button>
+        <button id="play" class="icon big" title="Lecture / Pause">▶</button>
+        <button id="next" class="icon" title="Suivant">⏭</button>
+      </div>
+      <div class="seek">
+        <span id="cur">0:00</span>
+        <input id="progress" type="range" min="0" max="1000" value="0">
+        <span id="dur">0:00</span>
+      </div>
+    </div>
+    <div class="volume">
+      🔊 <input id="volume" type="range" min="0" max="1" step="0.01" value="1">
+    </div>
+  </footer>
+
+  <audio id="audio" preload="auto"></audio>
+  <script src="app.js"></script>
+</body>
+</html>

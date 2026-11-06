@@ -1,0 +1,8 @@
+{
+  "name": "lecteur-mp3",
+  "version": "1.0.0",
+  "description": "Petit lecteur MP3 personnel : 1 dossier = 1 album, 100 % local",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "license": "MIT"
+}
