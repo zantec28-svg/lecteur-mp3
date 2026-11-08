@@ -86,5 +86,6 @@ input[type=range] { accent-color: var(--accent); }
   .top h1 { display: none; }
   #search { min-width: 0; }
   .link { padding: 6px 10px; font-size: 13px; }
+  .link .long { display: none; }
   .seek { display: none; }
 }
