@@ -36,7 +36,7 @@ de Chrome pour le choix d'un dossier, les fichiers ne quittent pas ton ordinateu
 
 ## Installer comme application (Chromebook, Chrome, Edge)
 
-Sur la version en ligne (https://lecteur.pauwels.ovh), un bouton **⬇ Installer** apparaît en haut à droite
+Sur la version en ligne (https://lecteur.pauwels.ovh), un bouton **⬇ Installer pour Chromebook** apparaît en haut à droite
 dans Chrome et Edge. Un clic, et le lecteur devient une application : icône dans le lanceur du Chromebook,
 fenêtre à part. Le bouton n'apparaît pas si l'application est déjà installée ou si le navigateur ne le permet pas.
 
